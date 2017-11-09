@@ -150,6 +150,8 @@ add_subdirectory(samples/StoryRobotArm EXCLUDE_FROM_ALL)
 
 add_subdirectory(samples/StorySwitch EXCLUDE_FROM_ALL)
 
+add_subdirectory(samples/IntxLatency EXCLUDE_FROM_ALL)
+
 ##################################
 # Section: Define Install Target #
 ##################################
