@@ -247,7 +247,8 @@ namespace awsiotsdk {
                         FILE *fp;
 			std::this_thread::sleep_for(std::chrono::seconds(3));
 			char command[256];
-			sprintf(command, "get_temperature.sh");
+//			sprintf(command, "get_temperature.sh");
+			sprintf(command, "temperature -g");
                         fp = popen(command, "r");
                         if (fp == NULL) {
                                 std::cout << "Open failed\n";

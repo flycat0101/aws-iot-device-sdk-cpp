@@ -53,6 +53,12 @@
 
 #define SHADOW_MYSTATE_VALUE_ON "on"
 #define SHADOW_MYSTATE_VALUE_OFF "off"
+#define SHADOW_MYSTATE_VALUE_RED_F "red+f"
+#define SHADOW_MYSTATE_VALUE_RED "red"
+#define SHADOW_MYSTATE_VALUE_BLUE "blue"
+#define SHADOW_MYSTATE_VALUE_BLUE_H "blue+h"
+#define SHADOW_MYSTATE_VALUE_GREEN "green"
+#define SHADOW_MYSTATE_VALUE_TEMP "temp"
 
 #define SHADOW_DOCUMENT_EMPTY_STRING "{" \
 "    \"state\" : {" \
@@ -343,6 +349,8 @@ namespace awsiotsdk {
                     if (rc == ResponseCode::SHADOW_RECEIVED_DELTA) {
                         receivedMessage = my_shadow.GetServerDocument();
                         device = util::JsonParser::ToString(receivedMessage);
+                	std::cout << std::endl << "Receive message ------- " << std::endl << device << std::endl
+                        	  << std::endl;
 
                         if (receivedMessage[SHADOW_DOCUMENT_STATE_KEY][SHADOW_DOCUMENT_DESIRED_KEY].HasMember(STATE_KEY)) {
                             std::string receivedDeltaString =
@@ -365,13 +373,81 @@ namespace awsiotsdk {
 
                                 util::String p_topic_name_str = METERING_TOPIC;
                                 util::String payload;
-                                if (currentState.compare(SHADOW_MYSTATE_VALUE_ON) == 0) {
+				char cmd_light[128];
+				char cmd_temp[128];
+                                if (currentState.compare(SHADOW_MYSTATE_VALUE_RED_F) == 0) {
+                                    val.SetString(SHADOW_MYSTATE_VALUE_RED_F);
+                                    payload = "{\"state\": \"red+f\"}";
+					// set light to red
+					// stop heater and start fan
+					sprintf(cmd_light, "light_control.sh red");
+					system(cmd_light);
+					sprintf(cmd_temp, "temperature -h 0"); //stop heater
+					system(cmd_temp);
+					sprintf(cmd_temp, "temperature -c 1"); //start fan
+					system(cmd_temp);
+
+                                } else if (currentState.compare(SHADOW_MYSTATE_VALUE_RED) == 0) {
+                                    val.SetString(SHADOW_MYSTATE_VALUE_RED);
+                                    payload = "{\"state\": \"red\"}";
+					// set light to red
+					sprintf(cmd_light, "light_control.sh red");
+					system(cmd_light);
+
+                                } else if (currentState.compare(SHADOW_MYSTATE_VALUE_BLUE) == 0) {
+                                    val.SetString(SHADOW_MYSTATE_VALUE_BLUE);
+                                    payload = "{\"state\": \"blue\"}";
+					// set light to blue
+					sprintf(cmd_light, "light_control.sh blue");
+					system(cmd_light);
+
+                                } else if (currentState.compare(SHADOW_MYSTATE_VALUE_BLUE_H) == 0) {
+                                    val.SetString(SHADOW_MYSTATE_VALUE_BLUE_H);
+                                    payload = "{\"state\": \"blue+h\"}";
+					// set light to blue
+					// start heater and stop fan
+					sprintf(cmd_light, "light_control.sh blue");
+					system(cmd_light);
+					sprintf(cmd_temp, "temperature -h 1"); //start heater
+					system(cmd_temp);
+					sprintf(cmd_temp, "temperature -c 0"); //stop fan
+					system(cmd_temp);
+
+                                } else if (currentState.compare(SHADOW_MYSTATE_VALUE_GREEN) == 0) {
+                                    val.SetString(SHADOW_MYSTATE_VALUE_GREEN);
+                                    payload = "{\"state\": \"green\"}";
+					// set light to green
+					sprintf(cmd_light, "light_control.sh green");
+					system(cmd_light);
+
+                                } else if (currentState.compare(SHADOW_MYSTATE_VALUE_ON) == 0) {
                                     val.SetString(SHADOW_MYSTATE_VALUE_ON);
                                     payload = "{\"state\": \"on\"}";
-                                } else {
+					printf("start heater and stop fan\n");
+					sprintf(cmd_temp, "temperature -h 1"); //start heater
+					system(cmd_temp);
+					sprintf(cmd_temp, "temperature -c 0"); //stop fan
+					system(cmd_temp);
+                                } else if (currentState.compare(SHADOW_MYSTATE_VALUE_OFF) == 0) {
                                     val.SetString(SHADOW_MYSTATE_VALUE_OFF);
                                     payload = "{\"state\": \"off\"}";
+					printf("stop heater and start fan\n");
+					sprintf(cmd_temp, "temperature -h 0"); //stop heater
+					system(cmd_temp);
+					sprintf(cmd_temp, "temperature -c 1"); //start fan
+					system(cmd_temp);
+                                } else {
+                                    val.SetString(SHADOW_MYSTATE_VALUE_TEMP);
+                                    payload = "{\"state\": \"temperature\"}";
+					// set the target temperature for display
+//					sprintf(cmd_temp, "temp_control.sh %s", currentState.c_str());
+					int temp_i = atoi(currentState.c_str());
+					printf("set target temperature: %d\n", temp_i);
+					sprintf(cmd_temp, "temperature -w %d:%d", (temp_i + 20), (temp_i - 20));
+					system(cmd_temp);
                                 }
+
+#if 1
                                 uint16_t packet_id = 0;
                                 std::unique_ptr <Utf8String> p_topic_name = Utf8String::Create(p_topic_name_str);
                                 rc = p_iot_client_->PublishAsync(std::move(p_topic_name), false, false, mqtt::QoS::QOS0,
@@ -382,11 +458,11 @@ namespace awsiotsdk {
                                         << std::endl;
                                 }
 
-                                std::cout << "------- Thread Lamp State --------" << std::endl << currentState
-                                          << std::endl;
-				char cmd[1024];
-				sprintf(cmd, "run_thread.sh %s", currentState.c_str());
-				system(cmd);
+//                                std::cout << "------- Thread Lamp State --------" << std::endl << currentState
+//                                          << std::endl;
+//				char cmd[1024];
+//				sprintf(cmd, "run_thread.sh %s", currentState.c_str());
+//				system(cmd);
 
                                 sendMessage[SHADOW_DOCUMENT_STATE_KEY][SHADOW_DOCUMENT_REPORTED_KEY].AddMember(key.Move(),
                                                                                                                val.Move(),
@@ -403,6 +479,7 @@ namespace awsiotsdk {
                                                   static_cast<int>(rc));
                                     return rc;
                                 }
+#endif
                                 //Sleep for 1 second and wait for all messages to be received
                                 std::this_thread::sleep_for(std::chrono::milliseconds(1000));
                             }
